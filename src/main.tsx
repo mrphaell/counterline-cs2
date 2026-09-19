@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, BarChart3, CalendarDays, ChevronDown, CircleHelp, Crosshair, ExternalLink, Filter, Globe2, Layers3, Menu, Search, Shield, Swords, Target, Trophy, Users } from 'lucide-react'
+import { Activity, ArrowRight, ArrowUpRight, BarChart3, CalendarDays, ChevronDown, CircleHelp, Crosshair, ExternalLink, Filter, Globe2, Layers3, Menu, Search, Shield, Swords, Target, Trophy, Users } from 'lucide-react'
 import './style.css'
 
 type Team = { id:number; name:string }
@@ -8,8 +8,8 @@ type TeamDetail = Team & { streak?:number; roster?:Team[] }
 type TeamMap = { id:number; name:string; n:number; n_wins:number }
 type Player = { id:number; name:string; rank:number; k:number; d:number; swing:number; adr:number; kast:number; rating:number; N:number }
 type PlayerMap = Omit<Player,'rank'|'name'> & { name:string }
-type Ranking = Team & { rank:number; rank_diff:number; points:number; points_diff:number }
-type Match = { id:number; team1:Team & {score:number;rank:number}; team2:Team & {score:number;rank:number}; maps:{id:number;name:string;team1_score:number;team2_score:number}[]; best_of:number;date:string;event:string;winner:Team }
+type Ranking = Team & { rank:number; points:number }
+type Match = { id:number; team1:Team & {score:number;rank:number}; team2:Team & {score:number;rank:number}; maps:{id:number;name:string;team1_score:number;team2_score:number}[]; best_of:number;date:string;event:string;winner:Team;url?:string }
 type Tab = 'Overview'|'Teams'|'Players'|'Tournaments'
 
 const mapNames = ['All maps','Anubis','Ancient','Dust2','Nuke','Mirage','Inferno','Train','Overpass','Cache']
@@ -25,7 +25,7 @@ const events = [
 const fmtDate=(date:string)=>new Date(date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})
 const pct=(a:number,b:number)=> b ? Math.round(a/b*100) : 0
 const initials=(name:string)=>name.replace(/[^a-z0-9 ]/gi,'').split(' ').map(x=>x[0]).slice(0,2).join('').toUpperCase()
-const api=async<T,>(path:string):Promise<T>=>{const url=import.meta.env.DEV?'/api'+path:'/api/data?path='+encodeURIComponent(path);const r=await fetch(url);if(!r.ok)throw Error(`Data source returned ${r.status}`);return r.json()}
+const api=async<T,>(path:string):Promise<T>=>{const url=path.startsWith('/fresh/')?'/api/'+path.slice(7):import.meta.env.DEV?'/api'+path:'/api/data?path='+encodeURIComponent(path);const r=await fetch(url);if(!r.ok)throw Error(`Data source returned ${r.status}`);return r.json()}
 const useData=<T,>(path:string, initial:T)=>{const [data,setData]=useState<T>(initial);const [loading,setLoading]=useState(true);const [error,setError]=useState(false);useEffect(()=>{let alive=true;setLoading(true);setError(false);api<T>(path).then(d=>{if(alive)setData(d)}).catch(()=>{if(alive)setError(true)}).finally(()=>{if(alive)setLoading(false)});return()=>{alive=false}},[path]);return {data,loading,error}}
 
 function TeamMark({name,small=false}:{name:string;small?:boolean}){return <span className={'team-mark '+(small?'small':'')} style={{'--mark-hue':`${(name.charCodeAt(0)*31+name.length*49)%360}deg`} as React.CSSProperties}>{initials(name)}</span>}
@@ -38,13 +38,13 @@ function App(){
  const [selectedTeam,setSelectedTeam]=useState<number>(9565); const [teamQuery,setTeamQuery]=useState(''); const [teamMap,setTeamMap]=useState('All maps')
  const [selectedMap,setSelectedMap]=useState('Mirage');const [selectedPlayer,setSelectedPlayer]=useState<number|null>(null)
  const [eventFilter,setEventFilter]=useState<'Ongoing'|'Upcoming'|'All'>('Ongoing')
- const rankings=useData<{date:string;rankings:Ranking[]}>('/rankings/',{date:'',rankings:[]})
+ const rankings=useData<{date:string;rankings:Ranking[]}>('/fresh/rankings',{date:'',rankings:[]})
  const teams=useData<Team[]>('/teams/?limit=100',[])
  const detail=useData<TeamDetail>(`/teams/${selectedTeam}`,{id:selectedTeam,name:''})
  const teamStats=useData<TeamMap[]>(`/teams/${selectedTeam}/stats`,[])
  const players=useData<Player[]>(`/players/stats?mapid=${mapId[selectedMap]}&min_played=5&limit=30`,[])
  const playerMaps=useData<PlayerMap[]>(selectedPlayer?`/players/${selectedPlayer}/stats/maps`:'/maps/',[])
- const matches=useData<Match[]>('/matches/latest?limit=7',[])
+ const matches=useData<Match[]>('/fresh/results',[])
  const activeTeam=detail.data.name||teams.data.find(t=>t.id===selectedTeam)?.name||'Team'
  const filteredTeams=useMemo(()=>teams.data.filter(t=>t.name.toLowerCase().includes(teamQuery.toLowerCase())),[teamQuery,teams.data])
  const topTeams=rankings.data.rankings.slice(0,6)
@@ -60,7 +60,7 @@ function App(){
     <div className="brand"><span className="brand-icon"><Crosshair size={24} strokeWidth={2.6}/></span><span>COUNTER<span>LINE</span><small>CS2 INTELLIGENCE</small></span></div>
     <div className="sidebar-label">WORKSPACE</div>
     <nav aria-label="Main navigation">{([['Overview',BarChart3],['Teams',Shield],['Players',Users],['Tournaments',Trophy]] as const).map(([name,Icon])=><button key={name} className={'nav-item '+(tab===name?'active':'')} onClick={()=>selectTab(name)}><Icon size={18}/>{name}{tab===name&&<span className="nav-marker"/>}</button>)}</nav>
-    <div className="sidebar-bottom"><div className="sidebar-signal"><span className="signal-dot"/> DATA CONNECTION <span>ACTIVE</span></div><div className="sidebar-source">Stats by <a href="https://api.csapi.de/docs" target="_blank" rel="noreferrer">CSAPI <ExternalLink size={11}/></a><br/>Tournament calendar checked Sep 19, 2026</div></div>
+    <div className="sidebar-bottom"><div className="sidebar-signal"><span className="signal-dot"/> DATA CONNECTION <span>ACTIVE</span></div><div className="sidebar-source">Maps by <a href="https://api.csapi.de/docs" target="_blank" rel="noreferrer">CSAPI <ExternalLink size={11}/></a> · results by <a href="https://www.cs2observer.com/results" target="_blank" rel="noreferrer">CS2Observer <ExternalLink size={11}/></a><br/>Tournament calendar checked Sep 19, 2026</div></div>
    </aside>
    {mobileOpen&&<button className="mobile-backdrop" onClick={()=>setMobileOpen(false)} aria-label="Close menu"/>}
    <main className="main">
@@ -74,8 +74,8 @@ function App(){
         <div className="metric-card"><div className="metric-top"><span>TOP MIRAGE RATING</span><Crosshair size={19}/></div><div className="metric-main">{highlightPlayer?.name||'—'}</div><div className="metric-foot">{highlightPlayer?`${highlightPlayer.rating.toFixed(2)} rating · ${highlightPlayer.N} maps`:'Player leaderboard'}</div></div>
         <div className="metric-card"><div className="metric-top"><span>ONGOING EVENTS</span><Activity size={19}/></div><div className="metric-main">{events.filter(e=>e.start<=currentDate&&e.end>=currentDate).length.toString().padStart(2,'0')}</div><div className="metric-foot">Curated calendar · checked Sep 19</div></div>
        </div>
-       <div className="overview-grid"><section className="panel rankings-panel"><SectionTitle eyebrow="GLOBAL LADDER" title="Team rankings" action={<button className="text-action" onClick={()=>selectTab('Teams')}>Explore teams <ArrowRight size={16}/></button>}/>{rankings.loading?<Skeleton rows={6}/>:rankings.error?<DataIssue/>:<div className="ranking-list">{topTeams.map(t=><button key={t.id} className="ranking-row" onClick={()=>{setSelectedTeam(t.id);selectTab('Teams')}}><span className="rank-num">{String(t.rank).padStart(2,'0')}</span><TeamMark name={t.name} small/><span className="ranking-name">{t.name}</span><span className="ranking-points">{t.points.toLocaleString()} <small>PTS</small></span>{t.points_diff>=0?<ArrowUpRight className="up" size={16}/>:<ArrowDownRight className="down" size={16}/>}</button>)}</div>}<div className="panel-note">Ranking snapshot: {rankings.data.date||'loading'} · Source: CSAPI</div></section>
-        <section className="panel results-panel"><SectionTitle eyebrow="RECENTLY RECORDED" title="Match results" action={<a className="text-action" href="https://www.hltv.org/results" target="_blank" rel="noreferrer">All results <ExternalLink size={15}/></a>}/>{matches.loading?<Skeleton rows={5}/>:matches.error?<DataIssue/>:<div className="match-list">{matches.data.slice(0,5).map(m=><div className="match-row" key={m.id}><span className="match-date">{fmtDate(m.date)}</span><div className="match-teams"><span className={m.winner?.id===m.team1.id?'winner':''}>{m.team1.name}</span><strong>{m.team1.score} : {m.team2.score}</strong><span className={m.winner?.id===m.team2.id?'winner':''}>{m.team2.name}</span></div><span className="match-event" title={m.event}>{m.event}</span></div>)}</div>}<div className="panel-note">Latest matches available from CSAPI · dates shown per result</div></section></div>
+       <div className="overview-grid"><section className="panel rankings-panel"><SectionTitle eyebrow="GLOBAL LADDER" title="Team rankings" action={<button className="text-action" onClick={()=>selectTab('Teams')}>Explore teams <ArrowRight size={16}/></button>}/>{rankings.loading?<Skeleton rows={6}/>:rankings.error?<DataIssue/>:<div className="ranking-list">{topTeams.map(t=><button key={t.rank} className="ranking-row" disabled={!t.id} onClick={()=>{setSelectedTeam(t.id);selectTab('Teams')}}><span className="rank-num">{String(t.rank).padStart(2,'0')}</span><TeamMark name={t.name} small/><span className="ranking-name">{t.name}</span><span className="ranking-points">{t.points.toLocaleString()} <small>PTS</small></span><ArrowRight size={16}/></button>)}</div>}<div className="panel-note">HLTV ranking via <a href="https://pley.gg/cs2/world-rankings-cs2-2/" target="_blank" rel="noreferrer">Pley.gg</a> · Updated {rankings.data.date||'—'}</div></section>
+        <section className="panel results-panel"><SectionTitle eyebrow="LATEST RESULTS" title="Match results" action={<a className="text-action" href="https://www.cs2observer.com/results" target="_blank" rel="noreferrer">All results <ExternalLink size={15}/></a>}/>{matches.loading?<Skeleton rows={5}/>:matches.error?<DataIssue/>:<div className="match-list">{matches.data.slice(0,5).map(m=><a className="match-row" key={m.id} href={m.url||'https://www.cs2observer.com/results'} target="_blank" rel="noreferrer"><span className="match-date">{fmtDate(m.date)}</span><div className="match-teams"><span className={m.winner?.id===m.team1.id?'winner':''}>{m.team1.name}</span><strong>{m.team1.score} : {m.team2.score}</strong><span className={m.winner?.id===m.team2.id?'winner':''}>{m.team2.name}</span></div><span className="match-event" title={m.event}>{m.event}</span></a>)}</div>}<div className="panel-note">Recent match results via <a href="https://www.cs2observer.com/results" target="_blank" rel="noreferrer">CS2Observer</a> · dates shown per result</div></section></div>
        <section className="feature-banner"><div className="feature-graphic"><div className="radar radar-one"/><div className="radar radar-two"/><Crosshair size={65}/></div><div><div className="eyebrow lime">EXPLORE THE DETAILS</div><h2>Every map tells a story.</h2><p>Compare team win rates and discover which players own each battleground.</p></div><button onClick={()=>selectTab('Teams')}>Analyze maps <ArrowRight size={17}/></button></section>
       </>}
       {tab==='Teams'&&<><div className="page-heading"><div><div className="eyebrow lime">THE TEAM ROOM</div><h1>Team <em>map stats.</em></h1><p>Explore win rates and roster details for professional teams.</p></div><div className="asof">SOURCE: CSAPI <span className="signal-dot"/></div></div>
@@ -91,7 +91,7 @@ function App(){
       {tab==='Tournaments'&&<><div className="page-heading"><div><div className="eyebrow lime">THE CIRCUIT</div><h1>Tournament <em>calendar.</em></h1><p>Track events in progress and what comes next.</p></div><div className="asof">CHECKED SEP 19, 2026 <span className="signal-dot"/></div></div>
        <div className="event-controls">{(['Ongoing','Upcoming','All'] as const).map(f=><button key={f} className={eventFilter===f?'active':''} onClick={()=>setEventFilter(f)}>{f}</button>)}</div><div className="event-grid">{filteredEvents.map(e=><a className="event-card panel" key={e.name} href={e.url} target="_blank" rel="noreferrer"><div className="event-card-top"><span className="event-type"><span className="signal-dot"/>{e.start<=currentDate&&e.end>=currentDate?'ONGOING':e.start>currentDate?'UPCOMING':'ENDED'}</span><ExternalLink size={17}/></div><div className="event-icon"><Trophy size={30}/></div><h2>{e.name}</h2><div className="event-meta"><span><CalendarDays size={15}/>{fmtDate(e.start)} – {fmtDate(e.end)}</span><span><Globe2 size={15}/>{e.region}</span><span><Swords size={15}/>{e.type}</span></div></a>)}</div>{!filteredEvents.length&&<div className="empty-event"><CalendarDays size={34}/><h2>No events in this view</h2><p>The curated calendar was last checked Sep 19, 2026. Browse the current schedule at HLTV.</p><a href="https://www.hltv.org/events" target="_blank" rel="noreferrer">Open live event calendar <ExternalLink size={15}/></a></div>}<div className="calendar-note"><CircleHelp size={16}/><span>This calendar is a curated snapshot checked Sep 19, 2026. Event dates may change. Confirm schedules with <a href="https://www.hltv.org/events" target="_blank" rel="noreferrer">HLTV <ExternalLink size={12}/></a>.</span></div>
       </>}
-      <footer><span>COUNTERLINE <b>•</b> Independent CS2 stats explorer</span><span>Stats: <a href="https://api.csapi.de/docs" target="_blank" rel="noreferrer">CSAPI</a> · Calendar: <a href="https://www.hltv.org/events" target="_blank" rel="noreferrer">HLTV</a></span></footer>
+      <footer><span>COUNTERLINE <b>•</b> Independent CS2 stats explorer</span><span>Maps: <a href="https://api.csapi.de/docs" target="_blank" rel="noreferrer">CSAPI</a> · Rankings: <a href="https://pley.gg/cs2/world-rankings-cs2-2/" target="_blank" rel="noreferrer">Pley.gg</a> · Results: <a href="https://www.cs2observer.com/results" target="_blank" rel="noreferrer">CS2Observer</a></span></footer>
     </div>
    </main>
   </div>
