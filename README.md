@@ -16,7 +16,7 @@ npm install
 npm run dev
 ```
 
-The Vite development server proxies `/api/*` to CSAPI. Vercel uses the rewrite in `vercel.json` for the same path.
+The Vite development server proxies `/api/*` to CSAPI. Vercel serves the allowlisted `/api/data` function, which caches responses for five minutes.
 
 ## Build
 

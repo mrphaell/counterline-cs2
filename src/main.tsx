@@ -25,7 +25,7 @@ const events = [
 const fmtDate=(date:string)=>new Date(date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})
 const pct=(a:number,b:number)=> b ? Math.round(a/b*100) : 0
 const initials=(name:string)=>name.replace(/[^a-z0-9 ]/gi,'').split(' ').map(x=>x[0]).slice(0,2).join('').toUpperCase()
-const api=async<T,>(path:string):Promise<T>=>{const r=await fetch('/api'+path);if(!r.ok)throw Error(`Data source returned ${r.status}`);return r.json()}
+const api=async<T,>(path:string):Promise<T>=>{const url=import.meta.env.DEV?'/api'+path:'/api/data?path='+encodeURIComponent(path);const r=await fetch(url);if(!r.ok)throw Error(`Data source returned ${r.status}`);return r.json()}
 const useData=<T,>(path:string, initial:T)=>{const [data,setData]=useState<T>(initial);const [loading,setLoading]=useState(true);const [error,setError]=useState(false);useEffect(()=>{let alive=true;setLoading(true);setError(false);api<T>(path).then(d=>{if(alive)setData(d)}).catch(()=>{if(alive)setError(true)}).finally(()=>{if(alive)setLoading(false)});return()=>{alive=false}},[path]);return {data,loading,error}}
 
 function TeamMark({name,small=false}:{name:string;small?:boolean}){return <span className={'team-mark '+(small?'small':'')} style={{'--mark-hue':`${(name.charCodeAt(0)*31+name.length*49)%360}deg`} as React.CSSProperties}>{initials(name)}</span>}
