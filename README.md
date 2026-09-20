@@ -1,6 +1,6 @@
 # Counterline
 
-A CS2 esports stats dashboard for exploring team map records, player performance by map, rankings, recent results, and tournaments.
+A CS2 esports stats dashboard focused on recent team map records and player performance by map, with rankings, results, and tournaments as supporting context. The overview lets you switch teams and maps directly.
 
 ## Data
 
