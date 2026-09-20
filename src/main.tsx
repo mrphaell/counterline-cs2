@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Activity, ArrowRight, ArrowUpRight, BarChart3, CalendarDays, ChevronDown, CircleHelp, Crosshair, ExternalLink, Filter, Globe2, Layers3, Menu, Search, Shield, Swords, Target, Trophy, Users } from 'lucide-react'
 import './style.css'
-import { Analytics } from "@vercel/analytics/next"
+import { Analytics } from '@vercel/analytics/react'
 
 type Team = { id: number; name: string }
 type TeamDetail = Team & { streak?: number; roster?: Team[] }
@@ -133,4 +133,4 @@ function App() {
   </div>
 }
 
-createRoot(document.getElementById('root')!).render(<App />)
+createRoot(document.getElementById('root')!).render(<><App /><Analytics /></>)
